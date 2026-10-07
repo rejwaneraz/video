@@ -107,7 +107,7 @@ class _Cell extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        Thumb(
+        VideoThumb(
           asset: asset,
           width: 200,
           height: 267,

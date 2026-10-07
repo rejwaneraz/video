@@ -236,7 +236,7 @@ class _ProfileBody extends StatelessWidget {
             itemCount: videos.length,
             itemBuilder: (context, i) {
               final asset = videos[i];
-              return Thumb(
+              return VideoThumb(
                 asset: asset,
                 width: 200,
                 height: 267,

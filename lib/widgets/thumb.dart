@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 
 /// Async thumbnail for a video asset, with duration badge.
-class Thumb extends StatefulWidget {
-  const Thumb({
+class VideoThumb extends StatefulWidget {
+  const VideoThumb({
     super.key,
     required this.asset,
     this.width = 160,
@@ -21,10 +21,10 @@ class Thumb extends StatefulWidget {
   final VoidCallback? onTap;
 
   @override
-  State<Thumb> createState() => _ThumbState();
+  State<VideoThumb> createState() => _ThumbState();
 }
 
-class _ThumbState extends State<Thumb> {
+class _ThumbState extends State<VideoThumb> {
   Uint8List? _bytes;
   bool _loading = true;
 
@@ -35,7 +35,7 @@ class _ThumbState extends State<Thumb> {
   }
 
   @override
-  void didUpdateWidget(covariant Thumb old) {
+  void didUpdateWidget(covariant VideoThumb old) {
     super.didUpdateWidget(old);
     if (old.asset.id != widget.asset.id) _load();
   }
