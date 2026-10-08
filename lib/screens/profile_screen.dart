@@ -11,215 +11,225 @@ import 'comments_sheet.dart';
 import 'edit_profile_screen.dart';
 import 'select_videos_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+const Color _pink = Color(0xFFFF2D78);
+const Color _surface = Color(0xFF111114);
+const Color _btnGrey = Color(0xFF2A2A32);
 
-  @override
-  Widget build(BuildContext context) {
-    final state = AppStateScope.of(context);
-
-    if (state.profiles.isEmpty) {
-      return _NoProfile(state: state);
-    }
-    final profile = state.activeProfile ?? state.profiles.first;
-
-    return SafeArea(
-      bottom: false,
-      child: Column(
-        children: [
-          if (state.profiles.length > 1) _ProfileSwitcher(state: state),
-          Expanded(child: _ProfileBody(profile: profile)),
-        ],
-      ),
-    );
-  }
+String _handle(String name) {
+  final h = name.trim().toLowerCase().replaceAll(RegExp(r'\s+'), '');
+  return h.isEmpty ? 'user' : h;
 }
 
-class _NoProfile extends StatelessWidget {
-  const _NoProfile({required this.state});
-  final AppState state;
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.person_outline, color: Colors.white38, size: 60),
-              const SizedBox(height: 14),
-              const Text(
-                'Profile nei.\nEkta profile banan, tarpor video copy korun.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white70, height: 1.4),
-              ),
-              const SizedBox(height: 18),
-              ElevatedButton.icon(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-                ),
-                icon: const Icon(Icons.add),
-                label: const Text('Create profile'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF2D78),
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+String _fmtCount(int n) {
+  if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+  if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
+  return '$n';
 }
 
-class _ProfileSwitcher extends StatelessWidget {
-  const _ProfileSwitcher({required this.state});
-  final AppState state;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 92,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        children: [
-          for (final p in state.profiles)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: GestureDetector(
-                onTap: () => state.setActiveProfile(p.id),
-                child: Column(
-                  children: [
-                    Avatar(
-                      path: p.avatarPath,
-                      name: p.name,
-                      size: 46,
-                      ring: state.activeProfile?.id == p.id,
-                    ),
-                    const SizedBox(height: 4),
-                    SizedBox(
-                      width: 62,
-                      child: Text(
-                        p.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: state.activeProfile?.id == p.id
-                              ? Colors.white
-                              : Colors.white54,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            child: GestureDetector(
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-              ),
-              child: Column(
-                children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white24),
-                    ),
-                    child: const Icon(Icons.add, color: Colors.white70),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text('Add',
-                      style: TextStyle(color: Colors.white54, fontSize: 11)),
-                ],
-              ),
-            ),
-          ),
-        ],
+List<PopupMenuEntry<String>> _profileMenuItems() => const [
+      PopupMenuItem(
+        value: 'edit',
+        child: Text('Edit profile', style: TextStyle(color: Colors.white)),
       ),
-    );
-  }
-}
+      PopupMenuItem(
+        value: 'add',
+        child: Text('Add videos', style: TextStyle(color: Colors.white)),
+      ),
+      PopupMenuItem(
+        value: 'delete',
+        child: Text('Delete profile',
+            style: TextStyle(color: Color(0xFFFF6B8A))),
+      ),
+    ];
 
-class _ProfileBody extends StatelessWidget {
-  const _ProfileBody({required this.profile});
+/// A profile shown as a pushed full screen (opened by swipe-right on the feed,
+/// from the Me list, or the rail avatar). Resolves the freshest copy of
+/// [profile] from state so edits/deletes reflect immediately.
+class ProfilePage extends StatelessWidget {
+  const ProfilePage({super.key, required this.profile});
+
   final Profile profile;
 
+  void _onMenu(BuildContext context, Profile p, String value) {
+    final state = AppStateScope.read(context);
+    switch (value) {
+      case 'edit':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => EditProfileScreen(profile: p)),
+        );
+        break;
+      case 'add':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => SelectVideosScreen(profile: p)),
+        );
+        break;
+      case 'delete':
+        _confirmDeleteProfile(context, state, p);
+        break;
+      case 'hi':
+        _sayHi(context, state, p);
+        break;
+    }
+  }
+
+  Future<void> _confirmDeleteProfile(
+      BuildContext context, AppState state, Profile p) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E24),
+        title:
+            const Text('Delete profile?', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Profile muche jabe. Video gulo abar For You te chole ashbe.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Delete', style: TextStyle(color: _pink))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await state.deleteProfile(p.id);
+    if (context.mounted) Navigator.pop(context);
+  }
+
+  Future<void> _sayHi(BuildContext context, AppState state, Profile p) async {
+    final vids = state.sourcesOf(p);
+    if (vids.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ei profile e ekhono kono video nei')),
+      );
+      return;
+    }
+    await showCommentsSheet(context, vids.last.id);
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = AppStateScope.of(context);
-    final videos = state.sourcesOf(profile);
+    final p = state.profiles
+        .firstWhere((x) => x.id == profile.id, orElse: () => profile);
+
+    return Scaffold(
+      backgroundColor: _surface,
+      appBar: AppBar(
+        backgroundColor: _surface,
+        foregroundColor: Colors.white,
+        title: Text(
+          _handle(p.name),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+        actions: [
+          PopupMenuButton<String>(
+            color: const Color(0xFF1E1E24),
+            icon: const Icon(Icons.more_vert, color: Colors.white),
+            onSelected: (v) => _onMenu(context, p, v),
+            itemBuilder: (_) => _profileMenuItems(),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        top: false,
+        child: _ProfileBody(profile: p, onMenu: (v) => _onMenu(context, p, v)),
+      ),
+    );
+  }
+}
+
+enum _Sort { latest, mostViewed }
+
+class _ProfileBody extends StatefulWidget {
+  const _ProfileBody({required this.profile, required this.onMenu});
+
+  final Profile profile;
+  final ValueChanged<String> onMenu;
+
+  @override
+  State<_ProfileBody> createState() => _ProfileBodyState();
+}
+
+class _ProfileBodyState extends State<_ProfileBody> {
+  _Sort _sort = _Sort.latest;
+
+  void _toggleSort() => setState(
+      () => _sort = _sort == _Sort.latest ? _Sort.mostViewed : _Sort.latest);
+
+  @override
+  Widget build(BuildContext context) {
+    final state = AppStateScope.of(context);
+    final p = widget.profile;
+    final eng = state.engage;
+    final following = state.isFollowing(p.id);
+
+    var videos = state.sourcesOf(p);
+    if (_sort == _Sort.mostViewed) {
+      videos = [...videos]
+        ..sort((a, b) =>
+            eng.viewCount(b.id).compareTo(eng.viewCount(a.id)));
+    }
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
       children: [
-        Row(
-          children: [
-            Avatar(
-                path: profile.avatarPath, name: profile.name, size: 78, ring: true),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(profile.name,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 4),
-                  Text('${videos.length} videos',
-                      style: const TextStyle(color: Colors.white54, fontSize: 13)),
-                  if (profile.bio.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(profile.bio,
-                        style:
-                            const TextStyle(color: Colors.white70, height: 1.3)),
-                  ],
-                ],
-              ),
-            ),
-          ],
+        Center(
+          child: Avatar(path: p.avatarPath, name: p.name, size: 110, ring: true),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
+        Center(
+          child: Text(
+            p.name,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+                color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Center(
+          child: Text(
+            '@${_handle(p.name)}',
+            style: const TextStyle(color: Colors.white54, fontSize: 14),
+          ),
+        ),
+        const SizedBox(height: 18),
         Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Expanded(
-              child: _action(context, Icons.edit_outlined, 'Edit profile', () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => EditProfileScreen(profile: profile),
-                  ),
-                );
-              }),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _action(context, Icons.add_photo_alternate_outlined,
-                  'Add videos', () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => SelectVideosScreen(profile: profile),
-                  ),
-                );
-              }),
-            ),
+            _stat(_fmtCount(eng.following(p.id)), 'Following'),
+            const SizedBox(width: 34),
+            _stat(_fmtCount(eng.followers(p.id)), 'Followers'),
+            const SizedBox(width: 34),
+            _stat(_fmtCount(eng.profileLikes(p.id)), 'Likes'),
           ],
         ),
         const SizedBox(height: 20),
+        Row(
+          children: [
+            Expanded(child: _followButton(state, p, following)),
+            const SizedBox(width: 8),
+            _sayHiButton(),
+            const SizedBox(width: 8),
+            _dropdownButton(),
+          ],
+        ),
+        if (p.bio.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          Text(
+            p.bio,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white70, height: 1.3),
+          ),
+        ],
+        const SizedBox(height: 20),
+        _sortControl(),
+        const SizedBox(height: 8),
         if (videos.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 40),
@@ -247,14 +257,15 @@ class _ProfileBody extends StatelessWidget {
                 source: src,
                 width: 200,
                 height: 267,
+                viewsLabel: _fmtCount(eng.viewCount(src.id)),
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) =>
-                        ProfileFeed(videos: videos, index: i, owner: profile),
+                        ProfileFeed(videos: videos, index: i, owner: p),
                   ),
                 ),
-                onLongPress: () => _confirmDelete(context, state, src),
+                onLongPress: () => _confirmDeleteVideo(context, state, src),
               );
             },
           ),
@@ -262,7 +273,111 @@ class _ProfileBody extends StatelessWidget {
     );
   }
 
-  Future<void> _confirmDelete(
+  Widget _stat(String value, String label) => Column(
+        children: [
+          Text(value,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800)),
+          const SizedBox(height: 2),
+          Text(label,
+              style: const TextStyle(color: Colors.white54, fontSize: 12)),
+        ],
+      );
+
+  Widget _followButton(AppState state, Profile p, bool following) {
+    return SizedBox(
+      height: 44,
+      child: ElevatedButton(
+        onPressed: () => state.toggleFollow(p.id),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: following ? _btnGrey : _pink,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        child: Text(
+          following ? 'Following' : 'Follow',
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+    );
+  }
+
+  Widget _sayHiButton() {
+    return SizedBox(
+      height: 44,
+      child: Material(
+        color: _btnGrey,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => widget.onMenu('hi'),
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 14),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Say hi',
+                    style:
+                        TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                SizedBox(width: 4),
+                Text('👋'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _dropdownButton() {
+    return PopupMenuButton<String>(
+      color: const Color(0xFF1E1E24),
+      onSelected: widget.onMenu,
+      offset: const Offset(0, 44),
+      itemBuilder: (_) => _profileMenuItems(),
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: _btnGrey,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
+      ),
+    );
+  }
+
+  Widget _sortControl() {
+    final latest = _sort == _Sort.latest;
+    return Center(
+      child: InkWell(
+        onTap: _toggleSort,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(latest ? Icons.schedule : Icons.local_fire_department,
+                  size: 16, color: Colors.white70),
+              const SizedBox(width: 6),
+              Text(
+                latest ? 'Latest' : 'Most viewed',
+                style: const TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+              const Icon(Icons.keyboard_arrow_down,
+                  size: 16, color: Colors.white70),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteVideo(
       BuildContext context, AppState state, VideoSource src) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -280,37 +395,11 @@ class _ProfileBody extends StatelessWidget {
               child: const Text('Cancel')),
           TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Delete',
-                  style: TextStyle(color: Color(0xFFFF2D78)))),
+              child: const Text('Delete', style: TextStyle(color: _pink))),
         ],
       ),
     );
     if (ok == true) await state.deleteLocalVideo(src.id);
-  }
-
-  Widget _action(
-      BuildContext context, IconData icon, String label, VoidCallback onTap) {
-    return Material(
-      color: const Color(0xFF1B1B21),
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 18, color: Colors.white),
-              const SizedBox(width: 8),
-              Text(label,
-                  style: const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.w600)),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
 
@@ -354,11 +443,15 @@ class _ProfileFeedState extends State<ProfileFeed> {
             onPageChanged: (i) => setState(() => _index = i),
             itemBuilder: (context, i) {
               final src = widget.videos[i];
+              final state = AppStateScope.of(context);
               return VideoPage(
                 key: ValueKey(src.id),
                 source: src,
                 isActive: i == _index,
                 ownerName: widget.owner.name,
+                owner: widget.owner,
+                following: state.isFollowing(widget.owner.id),
+                onFollow: () => state.toggleFollow(widget.owner.id),
                 showAssign: false,
                 onOpenComments: () => showCommentsSheet(context, src.id),
               );

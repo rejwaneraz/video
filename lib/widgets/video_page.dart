@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
+import '../models/profile.dart';
 import '../models/video_source.dart';
 import '../state/app_state_scope.dart';
+import 'avatar.dart';
 
 /// One page of a vertical feed. Owns its VideoPlayerController.
 /// Video is shown *contained* (letterbox) so nothing is ever cropped.
@@ -12,6 +14,9 @@ class VideoPage extends StatefulWidget {
     required this.source,
     required this.isActive,
     this.ownerName,
+    this.owner,
+    this.onFollow,
+    this.following = false,
     this.onAssign,
     this.onOpenProfile,
     this.onOpenComments,
@@ -21,6 +26,12 @@ class VideoPage extends StatefulWidget {
   final VideoSource source;
   final bool isActive;
   final String? ownerName;
+
+  /// Owner profile (drives the rail avatar + follow badge).
+  final Profile? owner;
+  final VoidCallback? onFollow;
+  final bool following;
+
   final VoidCallback? onAssign;
   final VoidCallback? onOpenProfile;
   final VoidCallback? onOpenComments;
@@ -30,11 +41,17 @@ class VideoPage extends StatefulWidget {
   State<VideoPage> createState() => VideoPageState();
 }
 
-class VideoPageState extends State<VideoPage> with WidgetsBindingObserver {
+class VideoPageState extends State<VideoPage>
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   VideoPlayerController? _c;
   bool _initializing = false;
   bool _ready = false;
   bool _error = false;
+
+  late final AnimationController _disc = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 4),
+  )..repeat();
 
   @override
   void initState() {
@@ -130,6 +147,7 @@ class VideoPageState extends State<VideoPage> with WidgetsBindingObserver {
     _c?.removeListener(_onTick);
     _c?.dispose();
     _c = null;
+    _disc.dispose();
     super.dispose();
   }
 
@@ -168,6 +186,15 @@ class VideoPageState extends State<VideoPage> with WidgetsBindingObserver {
 
   bool get isMuted => _c?.value.volume == 0;
   bool get isPaused => !(_c?.value.isPlaying ?? false);
+
+  void _share() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Offline app — share ekhane somvob na (copy only).'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -279,29 +306,40 @@ class VideoPageState extends State<VideoPage> with WidgetsBindingObserver {
     required int comments,
   }) {
     final state = AppStateScope.read(context);
+    final id = widget.source.id;
+    final saved = state.engage.isSaved(id);
+    final bookmarks = state.engage.bookmarkCount(id) + (saved ? 1 : 0);
+    final shares = state.engage.shareCount(id);
+
     return Positioned(
       right: 8,
       bottom: 24,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (widget.owner != null) _ownerAvatar(),
           _railButton(
             icon: liked ? Icons.favorite : Icons.favorite_border,
             label: _fmt(likes),
             color: liked ? const Color(0xFFFF2D78) : Colors.white,
-            onTap: () => state.toggleLike(widget.source.id),
+            onTap: () => state.toggleLike(id),
           ),
           _railButton(
             icon: Icons.mode_comment_outlined,
             label: _fmt(comments),
             onTap: widget.onOpenComments,
           ),
-          if (widget.onOpenProfile != null)
-            _railButton(
-              icon: Icons.person_rounded,
-              label: widget.ownerName ?? 'Profile',
-              onTap: widget.onOpenProfile,
-            ),
+          _railButton(
+            icon: saved ? Icons.bookmark : Icons.bookmark_border,
+            label: _fmt(bookmarks),
+            color: saved ? const Color(0xFFFFC53D) : Colors.white,
+            onTap: () => state.toggleSave(id),
+          ),
+          _railButton(
+            icon: Icons.reply_rounded,
+            label: _fmt(shares),
+            onTap: _share,
+          ),
           _railButton(
             icon: isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
             label: isMuted ? 'Unmute' : 'Mute',
@@ -313,7 +351,73 @@ class VideoPageState extends State<VideoPage> with WidgetsBindingObserver {
               label: 'Assign',
               onTap: widget.onAssign,
             ),
+          _musicDisc(),
         ],
+      ),
+    );
+  }
+
+  Widget _ownerAvatar() {
+    final o = widget.owner;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: SizedBox(
+        width: 46,
+        child: Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.none,
+          children: [
+            GestureDetector(
+              onTap: widget.onOpenProfile,
+              child: Avatar(
+                path: o?.avatarPath,
+                name: o?.name ?? '',
+                size: 44,
+              ),
+            ),
+            Positioned(
+              bottom: -7,
+              child: GestureDetector(
+                onTap: widget.onFollow,
+                child: Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: widget.following
+                        ? Colors.grey.shade600
+                        : const Color(0xFFFF2D78),
+                    border: Border.all(color: Colors.white, width: 1),
+                  ),
+                  child: Icon(
+                    widget.following ? Icons.check : Icons.add,
+                    size: 13,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _musicDisc() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 4),
+      child: RotationTransition(
+        turns: _disc,
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: const Color(0xFF2A2A32),
+            border: Border.all(color: Colors.white24, width: 2),
+          ),
+          child: const Icon(Icons.music_note, size: 18, color: Colors.white),
+        ),
       ),
     );
   }

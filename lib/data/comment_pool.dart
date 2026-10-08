@@ -149,3 +149,14 @@ const List<String> kCommentPool = [
   'Apni awesome',
   'Ei video ta ekdom classic',
 ];
+
+/// Bangla/Banglish names used as authors of the auto comments so the thread
+/// feels like real people ("অবন্তি: অনেক সুন্দর"). Deterministically paired.
+const List<String> kNamePool = [
+  'অবন্তি', 'সুজন', 'রাফি', 'নুসরাত', 'তানভীর', 'মেহজাবিন', 'আরিয়ান',
+  'সাদিয়া', 'রাকিব', 'তাসনিম', 'ইমরান', 'ফারিয়া', 'সজীব', 'নাজিয়া',
+  'আবির', 'রুমকি', 'শান্ত', 'তৃষা', 'মাহিন', 'প্রিয়তি', 'অর্ণব',
+  'স্বপ্না', 'রিয়াদ', 'আয়েশা', 'তামিম', 'মেঘলা', 'সাব্বির', 'নিলিমা',
+  'জিসান', 'কাজল', 'ঋতু', 'সৌরভ', 'বৃষ্টি', 'অহনা', 'দিপ্ত',
+  'শ্রাবণী', 'নাফিস', 'তানিশা', 'রুদ্র', 'অদৃতা',
+];

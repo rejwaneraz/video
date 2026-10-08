@@ -11,6 +11,8 @@ class Db {
   static const _kLocalVideos = 'local_videos';
   static const _kLiked = 'liked_ids';
   static const _kUserComments = 'user_comments';
+  static const _kFollowed = 'followed_profiles';
+  static const _kSaved = 'saved_ids';
 
   late final SharedPreferences _prefs;
 
@@ -82,5 +84,17 @@ class Db {
 
   Future<void> saveUserComments(Map<String, List<String>> m) async {
     await _prefs.setString(_kUserComments, jsonEncode(m));
+  }
+
+  Set<String> getFollowed() => (_prefs.getStringList(_kFollowed) ?? []).toSet();
+
+  Future<void> saveFollowed(Set<String> ids) async {
+    await _prefs.setStringList(_kFollowed, ids.toList());
+  }
+
+  Set<String> getSavedIds() => (_prefs.getStringList(_kSaved) ?? []).toSet();
+
+  Future<void> saveSavedIds(Set<String> ids) async {
+    await _prefs.setStringList(_kSaved, ids.toList());
   }
 }

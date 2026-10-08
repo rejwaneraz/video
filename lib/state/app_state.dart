@@ -29,6 +29,9 @@ class AppState extends ChangeNotifier {
   List<AssetEntity> deviceVideos = [];
   String? activeProfileId;
 
+  /// Profile ids this user locally "follows" (drives Following count/tab).
+  Set<String> followedProfiles = {};
+
   List<String> _forYouOrder = [];
 
   Map<String, LocalVideo> _localById = {};
@@ -48,6 +51,7 @@ class AppState extends ChangeNotifier {
 
     await store.init();
     engage.load();
+    followedProfiles = db.getFollowed();
     profiles = db.getProfiles();
     activeProfileId = db.getActiveProfileId();
     localVideos = db.getLocalVideos();
@@ -146,6 +150,23 @@ class AppState extends ChangeNotifier {
 
   Future<void> toggleLike(String id) async {
     await engage.toggleLike(id);
+    notifyListeners();
+  }
+
+  Future<void> toggleSave(String id) async {
+    await engage.toggleSave(id);
+    notifyListeners();
+  }
+
+  bool isFollowing(String profileId) => followedProfiles.contains(profileId);
+
+  Future<void> toggleFollow(String profileId) async {
+    if (followedProfiles.contains(profileId)) {
+      followedProfiles.remove(profileId);
+    } else {
+      followedProfiles.add(profileId);
+    }
+    await db.saveFollowed(followedProfiles);
     notifyListeners();
   }
 

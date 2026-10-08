@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
 
-import 'screens/home.dart';
+import 'screens/app_shell.dart';
 import 'services/db.dart';
 import 'state/app_state.dart';
 import 'state/app_state_scope.dart';
@@ -50,7 +50,7 @@ class MiniTiktokApp extends StatelessWidget {
             elevation: 0,
           ),
         ),
-        home: const LockGate(child: Home()),
+        home: const LockGate(child: AppShell()),
       ),
     );
   }

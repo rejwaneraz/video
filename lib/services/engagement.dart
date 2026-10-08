@@ -1,6 +1,13 @@
 import '../data/comment_pool.dart';
 import 'db.dart';
 
+/// One auto comment with a deterministic author name.
+class NamedComment {
+  const NamedComment(this.name, this.text);
+  final String name;
+  final String text;
+}
+
 /// Per-video likes + comments. A deterministic "auto" layer (stable per video)
 /// plus user-added comments/likes persisted in [Db].
 class Engagement {
@@ -9,16 +16,24 @@ class Engagement {
   final Db db;
 
   final Set<String> _liked = {};
+  final Set<String> _saved = {};
   final Map<String, List<String>> _userComments = {};
 
   void load() {
     _liked
       ..clear()
       ..addAll(db.getLikedIds());
+    _saved
+      ..clear()
+      ..addAll(db.getSavedIds());
     _userComments
       ..clear()
       ..addAll(db.getUserComments());
   }
+
+  /// Everything the user has engaged with (used by the Inbox).
+  Set<String> get likedIds => Set<String>.unmodifiable(_liked);
+  Map<String, List<String>> get allUserComments => _userComments;
 
   /// Stable FNV-1a hash so counts/comments never change between runs.
   static int hashId(String id) {
@@ -32,6 +47,19 @@ class Engagement {
 
   int baseLikes(String id) => 420 + (hashId(id) % 96000);
 
+  /// Deterministic play count for a video (stable across runs).
+  int viewCount(String id) => 1000 + (hashId(id) % 2000000);
+
+  /// Deterministic per-profile stats (offline "fake" numbers).
+  int followers(String profileId) => 100 + (hashId('${profileId}_fl') % 500000);
+  int following(String profileId) => hashId('${profileId}_fg') % 900;
+  int profileLikes(String profileId) =>
+      1000 + (hashId('${profileId}_lk') % 2000000);
+
+  /// Deterministic bookmark / share counts shown on the rail.
+  int bookmarkCount(String id) => 50 + (hashId('${id}_bm') % 20000);
+  int shareCount(String id) => 10 + (hashId('${id}_sh') % 5000);
+
   bool isLiked(String id) => _liked.contains(id);
 
   int likeCount(String id) => baseLikes(id) + (isLiked(id) ? 1 : 0);
@@ -43,6 +71,17 @@ class Engagement {
       _liked.add(id);
     }
     await db.saveLikedIds(_liked);
+  }
+
+  bool isSaved(String id) => _saved.contains(id);
+
+  Future<void> toggleSave(String id) async {
+    if (_saved.contains(id)) {
+      _saved.remove(id);
+    } else {
+      _saved.add(id);
+    }
+    await db.saveSavedIds(_saved);
   }
 
   /// Deterministic auto comments for a video (stable subset of the pool).
@@ -58,6 +97,22 @@ class Engagement {
   }
 
   List<String> userComments(String id) => _userComments[id] ?? const [];
+
+  /// Auto comments paired with a deterministic author name.
+  List<NamedComment> autoCommentsNamed(String id) {
+    final h = hashId(id);
+    final n = 4 + (h % 8); // 4..11 comments
+    final start = h % kCommentPool.length;
+    final nStart = h % kNamePool.length;
+    final out = <NamedComment>[];
+    for (var i = 0; i < n; i++) {
+      out.add(NamedComment(
+        kNamePool[(nStart + i * 5) % kNamePool.length],
+        kCommentPool[(start + i * 7) % kCommentPool.length],
+      ));
+    }
+    return out;
+  }
 
   List<String> allComments(String id) =>
       [...autoComments(id), ...userComments(id)];

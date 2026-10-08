@@ -44,7 +44,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
   @override
   Widget build(BuildContext context) {
     final state = AppStateScope.of(context);
-    final auto = state.engage.autoComments(widget.videoId);
+    final auto = state.engage.autoCommentsNamed(widget.videoId);
     final user = state.engage.userComments(widget.videoId);
 
     return Padding(
@@ -74,10 +74,8 @@ class _CommentsSheetState extends State<CommentsSheet> {
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 children: [
-                  for (final c in user)
-                    _row(c, mine: true),
-                  for (final c in auto)
-                    _row(c, mine: false),
+                  for (final c in user) _row('You', c, mine: true),
+                  for (final c in auto) _row(c.name, c.text, mine: false),
                 ],
               ),
             ),
@@ -121,7 +119,8 @@ class _CommentsSheetState extends State<CommentsSheet> {
     );
   }
 
-  Widget _row(String text, {required bool mine}) {
+  Widget _row(String name, String text, {required bool mine}) {
+    final initial = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Row(
@@ -130,21 +129,39 @@ class _CommentsSheetState extends State<CommentsSheet> {
           CircleAvatar(
             radius: 15,
             backgroundColor: mine ? const Color(0xFFFF2D78) : Colors.white12,
-            child: Icon(
-              mine ? Icons.person : Icons.smart_toy_outlined,
-              size: 16,
-              color: Colors.white,
-            ),
+            child: mine
+                ? const Icon(Icons.person, size: 16, color: Colors.white)
+                : Text(
+                    initial,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700),
+                  ),
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                color: mine ? Colors.white : Colors.white70,
-                fontSize: 14,
-                height: 1.3,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: TextStyle(
+                    color: mine ? const Color(0xFFFF2D78) : Colors.white54,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  text,
+                  style: TextStyle(
+                    color: mine ? Colors.white : Colors.white70,
+                    fontSize: 14,
+                    height: 1.3,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

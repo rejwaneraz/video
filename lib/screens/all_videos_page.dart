@@ -8,7 +8,13 @@ import 'comments_sheet.dart';
 
 /// Vertical feed of every video currently on the phone (not copied).
 class AllVideosPage extends StatefulWidget {
-  const AllVideosPage({super.key});
+  const AllVideosPage({super.key, this.tabActive = true, this.showTitle = true});
+
+  /// Whether this tab is currently visible; gates playback.
+  final bool tabActive;
+
+  /// Shows the floating "All Videos" title (off when a top tab bar labels it).
+  final bool showTitle;
 
   @override
   State<AllVideosPage> createState() => _AllVideosPageState();
@@ -68,31 +74,32 @@ class _AllVideosPageState extends State<AllVideosPage> {
             return VideoPage(
               key: ValueKey(src.id),
               source: src,
-              isActive: i == _index,
+              isActive: i == _index && widget.tabActive,
               showAssign: false,
               onOpenComments: () => showCommentsSheet(context, src.id),
               onAssign: null,
             );
           },
         ),
-        Positioned(
-          top: 44,
-          left: 0,
-          right: 0,
-          child: IgnorePointer(
-            child: Center(
-              child: Text(
-                'All Videos',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.9),
-                  fontWeight: FontWeight.w800,
-                  fontSize: 17,
-                  shadows: const [Shadow(color: Colors.black54, blurRadius: 6)],
+        if (widget.showTitle)
+          Positioned(
+            top: 44,
+            left: 0,
+            right: 0,
+            child: IgnorePointer(
+              child: Center(
+                child: Text(
+                  'All Videos',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 17,
+                    shadows: const [Shadow(color: Colors.black54, blurRadius: 6)],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
       ],
     );
   }

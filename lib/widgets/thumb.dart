@@ -14,6 +14,7 @@ class VideoThumb extends StatefulWidget {
     this.width = 160,
     this.height = 213, // ~3:4 grid cell
     this.selected,
+    this.viewsLabel,
     this.onTap,
     this.onLongPress,
   });
@@ -22,6 +23,9 @@ class VideoThumb extends StatefulWidget {
   final double width;
   final double height;
   final bool? selected;
+
+  /// When set, shows a "▶ <count>" chip at the bottom-left (profile grid).
+  final String? viewsLabel;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
 
@@ -124,6 +128,27 @@ class _VideoThumbState extends State<VideoThumb> {
                 ),
               ),
             ),
+            if (viewsLabel != null)
+              Positioned(
+                left: 4,
+                bottom: 4,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.play_arrow, size: 13, color: Colors.white),
+                    const SizedBox(width: 1),
+                    Text(
+                      viewsLabel!,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        shadows: [Shadow(color: Colors.black54, blurRadius: 3)],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             if (sel != null) ...[
               AnimatedContainer(
                 duration: const Duration(milliseconds: 120),
