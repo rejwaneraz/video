@@ -73,14 +73,20 @@ flutter build apk --release    # Android APK -> build/app/outputs/flutter-apk/
 
 ## Features
 
-- **For You**: vertical swipe feed of every device video that isn't assigned.
-  - Tap = pause/play, double-tap left/right = seek ∓10s, rail = mute / assign / profile.
-- **Swipe left** from the feed → Profile tab.
-- **Profiles**: avatar (pick photo), name, bio. Create / edit / delete.
-- **Assign**: any video → one profile. Assigned videos leave For You and appear
-  on that profile's 3×(3:4) grid.
-- **Select videos**: grid picker to bulk-assign a profile's videos.
-- Multiple profiles via the switcher row at the top of the Profile tab.
+- **Fingerprint lock** on app open (skips automatically if no biometrics enrolled).
+- App display name: **Videos** (patched in CI).
+- **For You**: every *copied* video, shuffled. Pull-to-refresh reshuffles.
+- **All Videos** (swipe left): every video currently on the phone.
+- **Profile** (swipe right): the owner of the video you're watching.
+- **Copy to private storage**: selected videos are copied into the app's internal
+  dir as `<id>.mtv` (+ a `.jpg` thumb). They survive deleting the original and
+  are invisible to gallery/file-manager/other apps.
+- **Profiles**: avatar, name, bio; create/edit/delete; multi-profile switcher.
+  One video can be added to many profiles. Profile grid keeps your order.
+- **Likes + comments** per video: deterministic auto likes/comments (~150-comment
+  pool) plus your own comments and like toggle.
+- Player: tap pause, double-tap seek, mute, letterbox (no crop) for any aspect.
+- Long-press a profile grid tile to delete a copied video (frees storage).
 
 ## Structure
 

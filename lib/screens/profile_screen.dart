@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:photo_manager/photo_manager.dart';
 
 import '../models/profile.dart';
+import '../models/video_source.dart';
 import '../state/app_state.dart';
 import '../state/app_state_scope.dart';
 import '../widgets/avatar.dart';
 import '../widgets/thumb.dart';
 import '../widgets/video_page.dart';
+import 'comments_sheet.dart';
 import 'edit_profile_screen.dart';
 import 'select_videos_screen.dart';
 
@@ -20,14 +21,16 @@ class ProfileScreen extends StatelessWidget {
     if (state.profiles.isEmpty) {
       return _NoProfile(state: state);
     }
-
     final profile = state.activeProfile ?? state.profiles.first;
 
-    return Column(
-      children: [
-        if (state.profiles.length > 1) _ProfileSwitcher(state: state),
-        Expanded(child: _ProfileBody(profile: profile)),
-      ],
+    return SafeArea(
+      bottom: false,
+      child: Column(
+        children: [
+          if (state.profiles.length > 1) _ProfileSwitcher(state: state),
+          Expanded(child: _ProfileBody(profile: profile)),
+        ],
+      ),
     );
   }
 }
@@ -38,33 +41,35 @@ class _NoProfile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.person_outline, color: Colors.white38, size: 60),
-            const SizedBox(height: 14),
-            const Text(
-              'Profile nei.\nEkta profile banan, tarpor video assign korun.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white70, height: 1.4),
-            ),
-            const SizedBox(height: 18),
-            ElevatedButton.icon(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+    return SafeArea(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.person_outline, color: Colors.white38, size: 60),
+              const SizedBox(height: 14),
+              const Text(
+                'Profile nei.\nEkta profile banan, tarpor video copy korun.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white70, height: 1.4),
               ),
-              icon: const Icon(Icons.add),
-              label: const Text('Create profile'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF2D78),
-                foregroundColor: Colors.white,
+              const SizedBox(height: 18),
+              ElevatedButton.icon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                ),
+                icon: const Icon(Icons.add),
+                label: const Text('Create profile'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF2D78),
+                  foregroundColor: Colors.white,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -154,14 +159,15 @@ class _ProfileBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = AppStateScope.of(context);
-    final videos = state.videosOf(profile);
+    final videos = state.sourcesOf(profile);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
       children: [
         Row(
           children: [
-            Avatar(path: profile.avatarPath, name: profile.name, size: 78, ring: true),
+            Avatar(
+                path: profile.avatarPath, name: profile.name, size: 78, ring: true),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
@@ -178,7 +184,8 @@ class _ProfileBody extends StatelessWidget {
                   if (profile.bio.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Text(profile.bio,
-                        style: const TextStyle(color: Colors.white70, height: 1.3)),
+                        style:
+                            const TextStyle(color: Colors.white70, height: 1.3)),
                   ],
                 ],
               ),
@@ -235,9 +242,9 @@ class _ProfileBody extends StatelessWidget {
             ),
             itemCount: videos.length,
             itemBuilder: (context, i) {
-              final asset = videos[i];
+              final src = videos[i];
               return VideoThumb(
-                asset: asset,
+                source: src,
                 width: 200,
                 height: 267,
                 onTap: () => Navigator.push(
@@ -247,11 +254,38 @@ class _ProfileBody extends StatelessWidget {
                         ProfileFeed(videos: videos, index: i, owner: profile),
                   ),
                 ),
+                onLongPress: () => _confirmDelete(context, state, src),
               );
             },
           ),
       ],
     );
+  }
+
+  Future<void> _confirmDelete(
+      BuildContext context, AppState state, VideoSource src) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E24),
+        title:
+            const Text('Delete video?', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Copy muche jabe (storage khali hobe). Sob profile theke remove hobe.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Delete',
+                  style: TextStyle(color: Color(0xFFFF2D78)))),
+        ],
+      ),
+    );
+    if (ok == true) await state.deleteLocalVideo(src.id);
   }
 
   Widget _action(
@@ -289,7 +323,7 @@ class ProfileFeed extends StatefulWidget {
     required this.owner,
   });
 
-  final List<AssetEntity> videos;
+  final List<VideoSource> videos;
   final int index;
   final Profile owner;
 
@@ -319,14 +353,14 @@ class _ProfileFeedState extends State<ProfileFeed> {
             itemCount: widget.videos.length,
             onPageChanged: (i) => setState(() => _index = i),
             itemBuilder: (context, i) {
-              final asset = widget.videos[i];
+              final src = widget.videos[i];
               return VideoPage(
-                key: ValueKey(asset.id),
-                asset: asset,
+                key: ValueKey(src.id),
+                source: src,
                 isActive: i == _index,
-                caption: asset.title,
                 ownerName: widget.owner.name,
-                ownerAvatar: widget.owner.avatarPath,
+                showAssign: false,
+                onOpenComments: () => showCommentsSheet(context, src.id),
               );
             },
           ),

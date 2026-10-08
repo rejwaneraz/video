@@ -4,28 +4,31 @@ import '../state/app_state_scope.dart';
 import '../widgets/avatar.dart';
 import 'edit_profile_screen.dart';
 
-/// Bottom sheet: assign the given video to a profile (or remove it).
-Future<void> showAssignSheet(BuildContext context, String videoId) {
+/// Bottom sheet: add/remove a copied video to/from profiles.
+Future<void> showAssignSheet(BuildContext context, String localId) {
   return showModalBottomSheet(
     context: context,
     backgroundColor: const Color(0xFF17171B),
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
     ),
-    builder: (_) => AssignSheet(videoId: videoId),
+    builder: (_) => AssignSheet(localId: localId),
   );
 }
 
 class AssignSheet extends StatelessWidget {
-  const AssignSheet({super.key, required this.videoId});
+  const AssignSheet({super.key, required this.localId});
 
-  final String videoId;
+  final String localId;
 
   @override
   Widget build(BuildContext context) {
     final state = AppStateScope.of(context);
-    final current = state.ownerOf(videoId);
     const pink = Color(0xFFFF2D78);
+    final members = state.profiles
+        .where((p) => p.videoIds.contains(localId))
+        .map((p) => p.name)
+        .toList();
 
     return SafeArea(
       child: Padding(
@@ -46,7 +49,7 @@ class AssignSheet extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             const Text(
-              'Assign to profile',
+              'Add to profile',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 17,
@@ -55,9 +58,9 @@ class AssignSheet extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              current == null
-                  ? 'For You feed-e ache. Ekta profile-e add korun.'
-                  : 'Ekhon @${current.name} er profile-e ache.',
+              members.isEmpty
+                  ? 'For You te ache. Profile-e add korun.'
+                  : 'Ekhon: @${members.join(", @")}',
               style: const TextStyle(color: Colors.white54, fontSize: 12.5),
             ),
             const SizedBox(height: 14),
@@ -77,68 +80,42 @@ class AssignSheet extends StatelessWidget {
                     for (final p in state.profiles)
                       ListTile(
                         contentPadding: EdgeInsets.zero,
-                        leading: Avatar(path: p.avatarPath, name: p.name, size: 40),
+                        leading:
+                            Avatar(path: p.avatarPath, name: p.name, size: 40),
                         title: Text(
                           p.name,
                           style: const TextStyle(color: Colors.white),
                         ),
-                        trailing: current?.id == p.id
+                        trailing: p.videoIds.contains(localId)
                             ? const Icon(Icons.check_circle, color: pink)
-                            : const Icon(Icons.circle_outlined,
+                            : const Icon(Icons.add_circle_outline,
                                 color: Colors.white24),
                         onTap: () async {
-                          if (current?.id == p.id) {
-                            await state.unassign(videoId);
+                          if (p.videoIds.contains(localId)) {
+                            await state.removeFromProfile(p.id, localId);
                           } else {
-                            await state.assign(videoId, p.id);
+                            await state.addLocalToProfile(p.id, localId);
                           }
-                          if (context.mounted) Navigator.pop(context);
                         },
                       ),
                   ],
                 ),
               ),
             const SizedBox(height: 6),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      Navigator.pop(context);
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const EditProfileScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.person_add_alt, color: pink),
-                    label: const Text('New profile',
-                        style: TextStyle(color: Colors.white)),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.white24),
-                    ),
-                  ),
-                ),
-                if (current != null) ...[
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        await state.unassign(videoId);
-                        if (context.mounted) Navigator.pop(context);
-                      },
-                      icon: const Icon(Icons.remove_circle_outline,
-                          color: Colors.white70),
-                      label: const Text('Remove',
-                          style: TextStyle(color: Colors.white70)),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.white24),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
+            OutlinedButton.icon(
+              onPressed: () async {
+                Navigator.pop(context);
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                );
+              },
+              icon: const Icon(Icons.person_add_alt, color: pink),
+              label:
+                  const Text('New profile', style: TextStyle(color: Colors.white)),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Colors.white24),
+              ),
             ),
           ],
         ),

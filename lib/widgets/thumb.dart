@@ -1,31 +1,37 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 
-/// Async thumbnail for a video asset, with duration badge.
+import '../models/video_source.dart';
+
+/// Thumbnail for a [VideoSource]: local jpg first, else device asset thumb.
 class VideoThumb extends StatefulWidget {
   const VideoThumb({
     super.key,
-    required this.asset,
+    required this.source,
     this.width = 160,
     this.height = 213, // ~3:4 grid cell
     this.selected,
     this.onTap,
+    this.onLongPress,
   });
 
-  final AssetEntity asset;
+  final VideoSource source;
   final double width;
   final double height;
   final bool? selected;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
 
   @override
-  State<VideoThumb> createState() => _ThumbState();
+  State<VideoThumb> createState() => _VideoThumbState();
 }
 
-class _ThumbState extends State<VideoThumb> {
+class _VideoThumbState extends State<VideoThumb> {
   Uint8List? _bytes;
+  File? _local;
   bool _loading = true;
 
   @override
@@ -37,23 +43,38 @@ class _ThumbState extends State<VideoThumb> {
   @override
   void didUpdateWidget(covariant VideoThumb old) {
     super.didUpdateWidget(old);
-    if (old.asset.id != widget.asset.id) _load();
+    if (old.source.id != widget.source.id) _load();
   }
 
   Future<void> _load() async {
-    final bytes = await widget.asset.thumbnailDataWithSize(
-      ThumbnailSize(widget.width.toInt(), widget.height.toInt()),
-      quality: 70,
-    );
+    final lf = widget.source.localThumb;
+    if (lf != null) {
+      if (!mounted) return;
+      setState(() {
+        _local = lf;
+        _loading = false;
+      });
+      return;
+    }
+    final a = widget.source.asset;
+    if (a != null) {
+      final bytes = await a.thumbnailDataWithSize(
+        ThumbnailSize(widget.width.toInt(), widget.height.toInt()),
+        quality: 70,
+      );
+      if (!mounted) return;
+      setState(() {
+        _bytes = bytes;
+        _loading = false;
+      });
+      return;
+    }
     if (!mounted) return;
-    setState(() {
-      _bytes = bytes;
-      _loading = false;
-    });
+    setState(() => _loading = false);
   }
 
   String get _dur {
-    final d = Duration(seconds: widget.asset.duration);
+    final d = widget.source.duration;
     final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
     final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
     return '$m:$s';
@@ -64,15 +85,22 @@ class _ThumbState extends State<VideoThumb> {
     final sel = widget.selected;
     return GestureDetector(
       onTap: widget.onTap,
+      onLongPress: widget.onLongPress,
       child: SizedBox(
         width: widget.width,
         height: widget.height,
         child: Stack(
           fit: StackFit.expand,
           children: [
-            _bytes != null
-                ? Image.memory(_bytes!, fit: BoxFit.cover)
-                : Container(color: const Color(0xFF1A1A1E)),
+            if (_local != null)
+              Image.file(_local!, fit: BoxFit.cover)
+            else if (_bytes != null)
+              Image.memory(_bytes!, fit: BoxFit.cover)
+            else
+              Container(
+                color: const Color(0xFF1A1A1E),
+                child: const Icon(Icons.movie, color: Colors.white24),
+              ),
             if (_loading)
               const Center(
                 child: SizedBox(

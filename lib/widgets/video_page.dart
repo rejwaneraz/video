@@ -1,31 +1,30 @@
-import 'dart:io';
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
-import 'package:photo_manager/photo_manager.dart';
 import 'package:video_player/video_player.dart';
 
-/// One page of the vertical feed. Owns its VideoPlayerController and
-/// disposes it when the page is disposed.
+import '../models/video_source.dart';
+import '../state/app_state_scope.dart';
+
+/// One page of a vertical feed. Owns its VideoPlayerController.
+/// Video is shown *contained* (letterbox) so nothing is ever cropped.
 class VideoPage extends StatefulWidget {
   const VideoPage({
     super.key,
-    required this.asset,
+    required this.source,
     required this.isActive,
-    this.caption,
     this.ownerName,
-    this.ownerAvatar,
     this.onAssign,
     this.onOpenProfile,
+    this.onOpenComments,
+    this.showAssign = true,
   });
 
-  final AssetEntity asset;
+  final VideoSource source;
   final bool isActive;
-  final String? caption;
   final String? ownerName;
-  final String? ownerAvatar;
   final VoidCallback? onAssign;
   final VoidCallback? onOpenProfile;
+  final VoidCallback? onOpenComments;
+  final bool showAssign;
 
   @override
   State<VideoPage> createState() => VideoPageState();
@@ -36,23 +35,26 @@ class VideoPageState extends State<VideoPage> with WidgetsBindingObserver {
   bool _initializing = false;
   bool _ready = false;
   bool _error = false;
-  Uint8List? _thumb;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    widget.asset
-        .thumbnailDataWithSize(const ThumbnailSize(360, 480), quality: 70)
-        .then((b) {
-      if (mounted) setState(() => _thumb = b);
-    });
     if (widget.isActive) _init();
   }
 
   @override
   void didUpdateWidget(covariant VideoPage old) {
     super.didUpdateWidget(old);
+    if (widget.source.id != old.source.id) {
+      _c?.dispose();
+      _c = null;
+      _ready = false;
+      _error = false;
+      _initializing = false;
+      if (widget.isActive) _init();
+      return;
+    }
     if (widget.isActive && !old.isActive) {
       if (_ready) {
         _c?.play();
@@ -78,9 +80,7 @@ class VideoPageState extends State<VideoPage> with WidgetsBindingObserver {
     if (_initializing || _c != null) return;
     _initializing = true;
 
-    // Prefer the original file; fall back to a cached copy.
-    File? file = await widget.asset.originFile;
-    file ??= await widget.asset.file;
+    final file = await widget.source.resolveFile();
     if (file == null) {
       if (!mounted) return;
       setState(() {
@@ -95,15 +95,12 @@ class VideoPageState extends State<VideoPage> with WidgetsBindingObserver {
     try {
       await controller.initialize();
     } catch (_) {
-      if (!mounted) {
-        controller.dispose();
-        return;
-      }
+      controller.dispose();
+      if (!mounted) return;
       setState(() {
         _initializing = false;
         _error = true;
       });
-      controller.dispose();
       _c = null;
       return;
     }
@@ -114,11 +111,12 @@ class VideoPageState extends State<VideoPage> with WidgetsBindingObserver {
     }
 
     await controller.setLooping(true);
+    controller.addListener(_onTick);
+    if (!mounted) return;
     setState(() {
       _ready = true;
       _initializing = false;
     });
-    controller.addListener(_onTick);
     if (widget.isActive) controller.play();
   }
 
@@ -170,14 +168,26 @@ class VideoPageState extends State<VideoPage> with WidgetsBindingObserver {
 
   bool get isMuted => _c?.value.volume == 0;
   bool get isPaused => !(_c?.value.isPlaying ?? false);
-  bool get isReady => _ready;
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final state = AppStateScope.of(context);
+    final id = widget.source.id;
+    final liked = state.engage.isLiked(id);
+    final likes = state.engage.likeCount(id);
+    final comments = state.engage.commentCount(id);
+
     return GestureDetector(
       onTap: togglePlay,
-      onDoubleTapDown: (d) => _doubleTap(d, size),
+      onDoubleTapDown: (d) {
+        const seek = Duration(seconds: 10);
+        if (d.globalPosition.dx < size.width / 2) {
+          seekRelative(-seek);
+        } else {
+          seekRelative(seek);
+        }
+      },
       child: Container(
         color: Colors.black,
         child: Stack(
@@ -190,10 +200,13 @@ class VideoPageState extends State<VideoPage> with WidgetsBindingObserver {
                   child: VideoPlayer(_c!),
                 ),
               )
-            else if (_thumb != null)
-              SizedBox.expand(
-                child: Image.memory(_thumb!, fit: BoxFit.cover),
-              ),
+            else if (widget.source.localThumb != null)
+              Center(
+                child: Image.file(widget.source.localThumb!,
+                    fit: BoxFit.contain),
+              )
+            else
+              const SizedBox.shrink(),
             if (!_ready && !_error)
               const CircularProgressIndicator(color: Color(0xFFFF2D78)),
             if (_error)
@@ -214,20 +227,19 @@ class VideoPageState extends State<VideoPage> with WidgetsBindingObserver {
                 value: progress,
                 minHeight: 2,
                 backgroundColor: Colors.white24,
-                valueColor:
-                    const AlwaysStoppedAnimation(Color(0xFFFF2D78)),
+                valueColor: const AlwaysStoppedAnimation(Color(0xFFFF2D78)),
               ),
             ),
-            _buildCaption(context),
-            _buildRail(context),
+            _buildCaption(),
+            _buildRail(liked: liked, likes: likes, comments: comments),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCaption(BuildContext context) {
-    final title = widget.caption ?? widget.asset.title ?? '';
+  Widget _buildCaption() {
+    final title = widget.source.title;
     final owner = widget.ownerName;
     return Positioned(
       left: 12,
@@ -261,13 +273,29 @@ class VideoPageState extends State<VideoPage> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildRail(BuildContext context) {
+  Widget _buildRail({
+    required bool liked,
+    required int likes,
+    required int comments,
+  }) {
+    final state = AppStateScope.read(context);
     return Positioned(
       right: 8,
       bottom: 24,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          _railButton(
+            icon: liked ? Icons.favorite : Icons.favorite_border,
+            label: _fmt(likes),
+            color: liked ? const Color(0xFFFF2D78) : Colors.white,
+            onTap: () => state.toggleLike(widget.source.id),
+          ),
+          _railButton(
+            icon: Icons.mode_comment_outlined,
+            label: _fmt(comments),
+            onTap: widget.onOpenComments,
+          ),
           if (widget.onOpenProfile != null)
             _railButton(
               icon: Icons.person_rounded,
@@ -279,20 +307,28 @@ class VideoPageState extends State<VideoPage> with WidgetsBindingObserver {
             label: isMuted ? 'Unmute' : 'Mute',
             onTap: toggleMute,
           ),
-          _railButton(
-            icon: Icons.playlist_add_rounded,
-            label: 'Assign',
-            onTap: widget.onAssign,
-          ),
+          if (widget.showAssign && widget.onAssign != null)
+            _railButton(
+              icon: Icons.playlist_add_rounded,
+              label: 'Assign',
+              onTap: widget.onAssign,
+            ),
         ],
       ),
     );
+  }
+
+  String _fmt(int n) {
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
+    return '$n';
   }
 
   Widget _railButton({
     required IconData icon,
     required String label,
     VoidCallback? onTap,
+    Color color = Colors.white,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -307,23 +343,13 @@ class VideoPageState extends State<VideoPage> with WidgetsBindingObserver {
                 color: Colors.black38,
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: Colors.white, size: 24),
+              child: Icon(icon, color: color, size: 24),
             ),
             const SizedBox(height: 3),
-            Text(label,
-                style: const TextStyle(color: Colors.white, fontSize: 10)),
+            Text(label, style: const TextStyle(color: Colors.white, fontSize: 10)),
           ],
         ),
       ),
     );
-  }
-
-  void _doubleTap(TapDownDetails d, Size size) {
-    final seek = Duration(seconds: 10);
-    if (d.globalPosition.dx < size.width / 2) {
-      seekRelative(-seek);
-    } else {
-      seekRelative(seek);
-    }
   }
 }

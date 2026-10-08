@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 
 import '../models/profile.dart';
+import '../models/video_source.dart';
 import '../state/app_state.dart';
 import '../state/app_state_scope.dart';
 import '../widgets/thumb.dart';
 
-/// Grid of every device video. Pick which ones belong to [profile].
+/// Grid of device videos. Pick which to copy into this profile.
+/// Already-copied videos are preselected; new ones get copied on Done.
 class SelectVideosScreen extends StatefulWidget {
   const SelectVideosScreen({super.key, required this.profile});
 
@@ -17,18 +19,32 @@ class SelectVideosScreen extends StatefulWidget {
 }
 
 class _SelectVideosScreenState extends State<SelectVideosScreen> {
-  late Set<String> _selected;
+  late Set<String> _selected; // asset ids
 
   @override
   void initState() {
     super.initState();
-    _selected = widget.profile.videoIds.toSet();
+    final state = AppStateScope.read(context);
+    _selected = {};
+    for (final id in widget.profile.videoIds) {
+      final lv = state.localById(id);
+      if (lv != null) _selected.add(lv.srcAssetId);
+    }
+  }
+
+  Future<void> _done() async {
+    final state = AppStateScope.read(context);
+    final assets = state.deviceVideos
+        .where((a) => _selected.contains(a.id))
+        .toList();
+    await state.importToProfile(widget.profile.id, assets);
+    if (mounted) Navigator.pop(context, true);
   }
 
   @override
   Widget build(BuildContext context) {
     final state = AppStateScope.of(context);
-    final videos = state.videos;
+    final videos = state.deviceVideos;
 
     return Scaffold(
       backgroundColor: const Color(0xFF111114),
@@ -37,105 +53,95 @@ class _SelectVideosScreenState extends State<SelectVideosScreen> {
         foregroundColor: Colors.white,
         title: Text('Select videos · ${_selected.length}'),
         actions: [
-          TextButton(
-            onPressed: () async {
-              await state.setProfileVideos(widget.profile.id, _selected.toList());
-              if (mounted) Navigator.pop(context, true);
+          AnimatedBuilder(
+            animation: state.store,
+            builder: (context, _) {
+              final copying = state.store.copying;
+              return TextButton(
+                onPressed: copying ? null : _done,
+                child: copying
+                    ? SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          value: state.store.progress,
+                          color: const Color(0xFFFF2D78),
+                        ),
+                      )
+                    : const Text('Done',
+                        style: TextStyle(
+                            color: Color(0xFFFF2D78),
+                            fontWeight: FontWeight.w700)),
+              );
             },
-            child: const Text('Done',
-                style: TextStyle(
-                    color: Color(0xFFFF2D78), fontWeight: FontWeight.w700)),
           ),
         ],
       ),
-      body: videos.isEmpty
-          ? const Center(
-              child: Text('Kono video pawa jay ni',
-                  style: TextStyle(color: Colors.white54)))
-          : GridView.builder(
-              padding: const EdgeInsets.all(2),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                mainAxisSpacing: 2,
-                crossAxisSpacing: 2,
-                childAspectRatio: 3 / 4,
-              ),
-              itemCount: videos.length,
-              itemBuilder: (context, i) {
-                final asset = videos[i];
-                final owner = state.ownerOf(asset.id);
-                final ownedByOther = owner != null && owner.id != widget.profile.id;
-                final selected = _selected.contains(asset.id);
-                return _Cell(
-                  asset: asset,
-                  selected: selected,
-                  ownedByOther: ownedByOther,
-                  otherName: ownedByOther ? owner.name : null,
-                  onTap: ownedByOther
-                      ? null
-                      : () => setState(() {
-                            if (selected) {
-                              _selected.remove(asset.id);
-                            } else {
-                              _selected.add(asset.id);
-                            }
-                          }),
-                );
-              },
-            ),
-    );
-  }
-}
-
-class _Cell extends StatelessWidget {
-  const _Cell({
-    required this.asset,
-    required this.selected,
-    required this.ownedByOther,
-    this.otherName,
-    this.onTap,
-  });
-
-  final AssetEntity asset;
-  final bool selected;
-  final bool ownedByOther;
-  final String? otherName;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        VideoThumb(
-          asset: asset,
-          width: 200,
-          height: 267,
-          selected: selected,
-          onTap: onTap,
-        ),
-        if (ownedByOther)
-          Container(
-            color: Colors.black54,
-            alignment: Alignment.center,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.lock, color: Colors.white38, size: 20),
-                const SizedBox(height: 4),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  child: Text(
-                    '@$otherName',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white54, fontSize: 10),
+      body: AnimatedBuilder(
+        animation: state.store,
+        builder: (context, child) {
+          final store = state.store;
+          return Column(
+            children: [
+              if (store.copying)
+                Container(
+                  width: double.infinity,
+                  color: const Color(0xFF1B1B21),
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    children: [
+                      LinearProgressIndicator(
+                        value: store.progress,
+                        color: const Color(0xFFFF2D78),
+                        backgroundColor: Colors.white12,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Copy hocche ${store.done}/${store.total}: ${store.current ?? ""}',
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 12),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
-          ),
-      ],
+              Expanded(child: child!),
+            ],
+          );
+        },
+        child: videos.isEmpty
+            ? const Center(
+                child: Text('Kono video pawa jay ni',
+                    style: TextStyle(color: Colors.white54)))
+            : GridView.builder(
+                padding: const EdgeInsets.all(2),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 2,
+                  crossAxisSpacing: 2,
+                  childAspectRatio: 3 / 4,
+                ),
+                itemCount: videos.length,
+                itemBuilder: (context, i) {
+                  final asset = videos[i];
+                  final src = VideoSource.fromAsset(asset);
+                  final selected = _selected.contains(asset.id);
+                  return VideoThumb(
+                    source: src,
+                    width: 200,
+                    height: 267,
+                    selected: selected,
+                    onTap: () => setState(() {
+                      if (selected) {
+                        _selected.remove(asset.id);
+                      } else {
+                        _selected.add(asset.id);
+                      }
+                    }),
+                  );
+                },
+              ),
+      ),
     );
   }
 }
