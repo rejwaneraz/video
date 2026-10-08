@@ -43,16 +43,24 @@ Use this to orient without re-reading everything. Paths relative to repo root.
   `viewCount`, `bookmarkCount`, `shareCount`, and per-profile
   `followers`/`following`/`profileLikes` (all deterministic). `isSaved`/
   `toggleSave` (bookmarks). `autoComments` + `autoCommentsNamed` (returns
-  `NamedComment(name,username,text)`); userComments/allComments/commentCount/
+  `NamedComment(name,username,text,photo,person)`; `person` = index into
+  `kPeople`); `Engagement.commenterId(person)` = `"cm<person>"` fake-profile id;
+  userComments/allComments/commentCount/
   addComment;
   `likedIds` + `allUserComments` getters (feed the Inbox).
 - `lib/services/media_service.dart` — permission + paged device video load.
 - `lib/services/route_observer.dart` — global `appRouteObserver`
   (RouteObserver); registered in MaterialApp.navigatorObservers.
-- `lib/data/comment_pool.dart` — 200 Bangla/Banglish comments (`kCommentPool`)
-  + 50 `Commenter(name, username, photo)` identities (`kPeople`) + bundled
-  portraits `kCommenterAvatars` (assets/commenters/c01..c16.jpg, shuffled
-  across female identities; -1 = gradient fallback).
+- `lib/data/comment_pool.dart` — ~200 Bangla-script comments (`kCommentPool`,
+  no Banglish; general + romantic + dark/emotional + tasteful flirty)
+  + 62 female-only `Commenter(name, username, photo)` identities (`kPeople`;
+  photo = (index*7+3)%62, a full permutation) + bundled portraits
+  `kCommenterAvatars` (assets/commenters/c01..c62.jpg) + `kBioPool` (24 Bangla
+  bios for the fake commenter profiles).
+- `lib/screens/commenter_profile_screen.dart` — `CommenterProfileScreen(person)`:
+  fake profile mirroring ProfilePage look (avatar/name/@handle/stats/Follow/bio)
+  with NO videos ("এখনো কোনো ভিডিও নেই"). Stats + follow keyed off
+  `"cm<person>"`. Opened by tapping an identity in the comments sheet.
 
 ## Models
 - `Profile` (models/profile.dart): id,name,bio,avatarPath,videoIds[](ordered),createdAt.

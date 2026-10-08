@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/comment_pool.dart';
 import '../state/app_state_scope.dart';
+import 'commenter_profile_screen.dart';
 
 /// Bottom sheet listing auto + user comments, with an input to add your own.
 Future<void> showCommentsSheet(BuildContext context, String videoId) {
@@ -85,6 +86,13 @@ class _CommentsSheetState extends State<CommentsSheet> {
                       avatarAsset: c.photo >= 0 && c.photo < kCommenterAvatars.length
                           ? kCommenterAvatars[c.photo]
                           : null,
+                      onTapIdentity: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              CommenterProfileScreen(person: c.person),
+                        ),
+                      ),
                     ),
                 ],
               ),
@@ -130,45 +138,52 @@ class _CommentsSheetState extends State<CommentsSheet> {
   }
 
   Widget _row(String name, String text,
-      {required bool mine, String? username, String? avatarAsset}) {
+      {required bool mine,
+      String? username,
+      String? avatarAsset,
+      VoidCallback? onTapIdentity}) {
+    final avatar = _avatar(name, mine: mine, asset: avatarAsset);
+    final nameRow = Row(
+      children: [
+        Flexible(
+          child: Text(
+            name,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: mine ? const Color(0xFFFF2D78) : Colors.white70,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        if (username != null) ...[
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              username,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white30, fontSize: 11),
+            ),
+          ),
+        ],
+      ],
+    );
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _avatar(name, mine: mine, asset: avatarAsset),
+          onTapIdentity == null
+              ? avatar
+              : GestureDetector(onTap: onTapIdentity, child: avatar),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        name,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color:
-                              mine ? const Color(0xFFFF2D78) : Colors.white70,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    if (username != null) ...[
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          username,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              color: Colors.white30, fontSize: 11),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
+                onTapIdentity == null
+                    ? nameRow
+                    : GestureDetector(onTap: onTapIdentity, child: nameRow),
                 const SizedBox(height: 2),
                 Text(
                   text,

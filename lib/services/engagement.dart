@@ -3,13 +3,16 @@ import 'db.dart';
 
 /// One auto comment with a deterministic author identity.
 class NamedComment {
-  const NamedComment(this.name, this.username, this.text, this.photo);
+  const NamedComment(this.name, this.username, this.text, this.photo, this.person);
   final String name;
   final String username;
   final String text;
 
-  /// Index into kCommenterAvatars (-1 = no bundled photo).
+  /// Index into kCommenterAvatars.
   final int photo;
+
+  /// Index into kPeople, used to build a stable fake-profile id ("cm<person>").
+  final int person;
 }
 
 /// Per-video likes + comments. A deterministic "auto" layer (stable per video)
@@ -110,16 +113,21 @@ class Engagement {
     final nStart = h % kPeople.length;
     final out = <NamedComment>[];
     for (var i = 0; i < n; i++) {
-      final p = kPeople[(nStart + i * 5) % kPeople.length];
+      final idx = (nStart + i * 5) % kPeople.length;
+      final p = kPeople[idx];
       out.add(NamedComment(
         p.name,
         p.username,
         kCommentPool[(start + i * 7) % kCommentPool.length],
         p.photo,
+        idx,
       ));
     }
     return out;
   }
+
+  /// Stable fake-profile id for a commenter index (drives deterministic stats).
+  static String commenterId(int person) => 'cm$person';
 
   List<String> allComments(String id) =>
       [...autoComments(id), ...userComments(id)];
