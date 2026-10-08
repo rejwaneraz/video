@@ -8,13 +8,21 @@ import 'comments_sheet.dart';
 
 /// Vertical feed of every video currently on the phone (not copied).
 class AllVideosPage extends StatefulWidget {
-  const AllVideosPage({super.key, this.tabActive = true, this.showTitle = true});
+  const AllVideosPage({
+    super.key,
+    this.tabActive = true,
+    this.showTitle = true,
+    this.onExitToForYou,
+  });
 
   /// Whether this tab is currently visible; gates playback.
   final bool tabActive;
 
   /// Shows the floating "All Videos" title (off when a top tab bar labels it).
   final bool showTitle;
+
+  /// Left swipe returns to the For You top tab (reverse of entering it).
+  final VoidCallback? onExitToForYou;
 
   @override
   State<AllVideosPage> createState() => _AllVideosPageState();
@@ -23,6 +31,7 @@ class AllVideosPage extends StatefulWidget {
 class _AllVideosPageState extends State<AllVideosPage> {
   final PageController _pc = PageController();
   int _index = 0;
+  double _hDrag = 0;
 
   @override
   void dispose() {
@@ -62,7 +71,14 @@ class _AllVideosPageState extends State<AllVideosPage> {
       );
     }
 
-    return Stack(
+    return GestureDetector(
+      onHorizontalDragStart: (_) => _hDrag = 0,
+      onHorizontalDragUpdate: (d) => _hDrag += d.delta.dx,
+      onHorizontalDragEnd: (_) {
+        if (_hDrag < -60) widget.onExitToForYou?.call();
+        _hDrag = 0;
+      },
+      child: Stack(
       children: [
         PageView.builder(
           controller: _pc,
@@ -101,6 +117,7 @@ class _AllVideosPageState extends State<AllVideosPage> {
             ),
           ),
       ],
+      ),
     );
   }
 }

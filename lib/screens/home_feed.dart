@@ -4,9 +4,10 @@ import 'all_videos_page.dart';
 import 'feed_page.dart';
 import 'search_screen.dart';
 
-/// Home tab: a TikTok-style top tab bar (For You | All Videos) + search icon
+/// Home tab: a TikTok-style top tab bar (All Videos | For You) + search icon
 /// floating over the vertical feed. Tabs switch by TAP; the feed keeps its own
-/// horizontal gestures (right -> owner profile, left -> All Videos).
+/// horizontal gestures (right -> All Videos, left -> owner profile; on the
+/// All Videos tab a left swipe returns to For You).
 class HomeFeed extends StatefulWidget {
   const HomeFeed({
     super.key,
@@ -47,6 +48,7 @@ class _HomeFeedState extends State<HomeFeed> {
             AllVideosPage(
               tabActive: widget.tabActive && _top == 1,
               showTitle: false,
+              onExitToForYou: () => setState(() => _top = 0),
             ),
           ],
         ),
@@ -96,9 +98,9 @@ class _TopTabs extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _tab('For You', 0),
-                    const SizedBox(width: 20),
                     _tab('All Videos', 1),
+                    const SizedBox(width: 20),
+                    _tab('For You', 0),
                   ],
                 ),
               ),

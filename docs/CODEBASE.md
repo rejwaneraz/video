@@ -13,13 +13,15 @@ Use this to orient without re-reading everything. Paths relative to repo root.
   `_stackIndex` maps nav index -> stack child; each feed gets `tabActive` so a
   hidden tab never plays audio. (v2's `home.dart` 3-page pager is gone.)
 - `lib/screens/home_feed.dart` — `HomeFeed` = floating top tab bar
-  (`For You | All Videos` + search icon) over an `IndexedStack` [FeedPage,
-  AllVideosPage(showTitle:false)]. Tabs switch by TAP; feed keeps its own
-  horizontal gestures. `_TopTabs` renders the animated underline.
+  (`All Videos | For You`, For You on the right + search icon) over an
+  `IndexedStack` [FeedPage, AllVideosPage(showTitle:false, onExitToForYou)].
+  Tabs switch by TAP; feed keeps its own horizontal gestures. `_TopTabs`
+  renders the animated underline.
 - `lib/screens/feed_page.dart` — `FeedPage` (For You vertical PageView,
   RefreshIndicator reshuffle). Horizontal swipe left -> push owner `ProfilePage`;
-  swipe right -> `onOpenExplore` (All Videos top tab). `_EmptyFeed` calls
-  `onRequestAddVideos`. (v2 `HomeSwitcher`/`HomeController` removed.)
+  swipe right -> `onOpenExplore` (All Videos top tab); on All Videos a left
+  swipe returns to For You; on ProfilePage a right swipe pops. `_EmptyFeed`
+  calls `onRequestAddVideos`. (v2 `HomeSwitcher`/`HomeController` removed.)
 
 ## State & services
 - `lib/state/app_state.dart` — the brain. Fields: profiles, localVideos,
@@ -41,13 +43,16 @@ Use this to orient without re-reading everything. Paths relative to repo root.
   `viewCount`, `bookmarkCount`, `shareCount`, and per-profile
   `followers`/`following`/`profileLikes` (all deterministic). `isSaved`/
   `toggleSave` (bookmarks). `autoComments` + `autoCommentsNamed` (returns
-  `NamedComment(name,text)`); userComments/allComments/commentCount/addComment;
+  `NamedComment(name,username,text)`); userComments/allComments/commentCount/
+  addComment;
   `likedIds` + `allUserComments` getters (feed the Inbox).
 - `lib/services/media_service.dart` — permission + paged device video load.
 - `lib/services/route_observer.dart` — global `appRouteObserver`
   (RouteObserver); registered in MaterialApp.navigatorObservers.
-- `lib/data/comment_pool.dart` — 150 Banglish comments (`kCommentPool`) +
-  Bangla author names (`kNamePool`).
+- `lib/data/comment_pool.dart` — 200 Bangla/Banglish comments (`kCommentPool`)
+  + 50 `Commenter(name, username, photo)` identities (`kPeople`) + bundled
+  portraits `kCommenterAvatars` (assets/commenters/c01..c16.jpg, shuffled
+  across female identities; -1 = gradient fallback).
 
 ## Models
 - `Profile` (models/profile.dart): id,name,bio,avatarPath,videoIds[](ordered),createdAt.
@@ -73,7 +78,8 @@ Use this to orient without re-reading everything. Paths relative to repo root.
 - `select_videos_screen.dart` — device grid, preselect from profile, Done ->
   `importToProfile`; shows copy progress bar (AnimatedBuilder on store).
 - `assign_sheet.dart` — add/remove a copy to/from profiles (multi).
-- `comments_sheet.dart` — named auto + user comments + input.
+- `comments_sheet.dart` — named auto + user comments (@username line, bundled
+  photo avatars with gradient initial fallback) + input.
 - `all_videos_page.dart` — device videos feed (`tabActive`, `showTitle`);
   `importCurrentToActiveProfile` helper.
 
@@ -83,8 +89,9 @@ Use this to orient without re-reading everything. Paths relative to repo root.
   Contain/letterbox playback, lifecycle pause, RouteAware pause (didPushNext
   pauses when any route/sheet covers the player; didPopNext resumes).
   Rail (top->bottom): owner avatar
-  +follow badge, Like, Comment, Bookmark (saved_ids), Share (offline toast),
-  Mute, Assign, spinning music disc (`AnimationController`). `_fmt` K/M.
+  +follow badge, Like, Comment, Bookmark (saved_ids), Assign, spinning music
+  disc (`AnimationController`). Buttons are plain shadowed icons (TikTok
+  style). `_fmt` K/M.
 - `thumb.dart` — `VideoThumb(source,...,viewsLabel)` local jpg or asset thumb +
   duration + optional ▶ views chip + selection ring.
 - `avatar.dart` — `Avatar(path,name,size,ring)`.

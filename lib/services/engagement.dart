@@ -1,11 +1,15 @@
 import '../data/comment_pool.dart';
 import 'db.dart';
 
-/// One auto comment with a deterministic author name.
+/// One auto comment with a deterministic author identity.
 class NamedComment {
-  const NamedComment(this.name, this.text);
+  const NamedComment(this.name, this.username, this.text, this.photo);
   final String name;
+  final String username;
   final String text;
+
+  /// Index into kCommenterAvatars (-1 = no bundled photo).
+  final int photo;
 }
 
 /// Per-video likes + comments. A deterministic "auto" layer (stable per video)
@@ -98,17 +102,20 @@ class Engagement {
 
   List<String> userComments(String id) => _userComments[id] ?? const [];
 
-  /// Auto comments paired with a deterministic author name.
+  /// Auto comments paired with a deterministic author identity.
   List<NamedComment> autoCommentsNamed(String id) {
     final h = hashId(id);
     final n = 4 + (h % 8); // 4..11 comments
     final start = h % kCommentPool.length;
-    final nStart = h % kNamePool.length;
+    final nStart = h % kPeople.length;
     final out = <NamedComment>[];
     for (var i = 0; i < n; i++) {
+      final p = kPeople[(nStart + i * 5) % kPeople.length];
       out.add(NamedComment(
-        kNamePool[(nStart + i * 5) % kNamePool.length],
+        p.name,
+        p.username,
         kCommentPool[(start + i * 7) % kCommentPool.length],
+        p.photo,
       ));
     }
     return out;

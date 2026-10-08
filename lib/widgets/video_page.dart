@@ -189,14 +189,6 @@ class VideoPageState extends State<VideoPage>
     c.seekTo(t);
   }
 
-  void toggleMute() {
-    final c = _c;
-    if (c == null || !_ready) return;
-    setState(() {
-      c.setVolume(c.value.volume == 0 ? 1 : 0);
-    });
-  }
-
   double get progress {
     final c = _c;
     if (c == null || !_ready) return 0;
@@ -205,17 +197,7 @@ class VideoPageState extends State<VideoPage>
     return (c.value.position.inMilliseconds / total).clamp(0.0, 1.0);
   }
 
-  bool get isMuted => _c?.value.volume == 0;
   bool get isPaused => !(_c?.value.isPlaying ?? false);
-
-  void _share() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Offline app — share ekhane somvob na (copy only).'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -330,7 +312,6 @@ class VideoPageState extends State<VideoPage>
     final id = widget.source.id;
     final saved = state.engage.isSaved(id);
     final bookmarks = state.engage.bookmarkCount(id) + (saved ? 1 : 0);
-    final shares = state.engage.shareCount(id);
 
     return Positioned(
       right: 8,
@@ -355,16 +336,6 @@ class VideoPageState extends State<VideoPage>
             label: _fmt(bookmarks),
             color: saved ? const Color(0xFFFFC53D) : Colors.white,
             onTap: () => state.toggleSave(id),
-          ),
-          _railButton(
-            icon: Icons.reply_rounded,
-            label: _fmt(shares),
-            onTap: _share,
-          ),
-          _railButton(
-            icon: isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-            label: isMuted ? 'Unmute' : 'Mute',
-            onTap: toggleMute,
           ),
           if (widget.showAssign && widget.onAssign != null)
             _railButton(
@@ -456,22 +427,27 @@ class VideoPageState extends State<VideoPage>
     Color color = Colors.white,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 14),
       child: GestureDetector(
         onTap: onTap,
         child: Column(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: const BoxDecoration(
-                color: Colors.black38,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 22),
+            Icon(
+              icon,
+              color: color,
+              size: 32,
+              shadows: const [Shadow(color: Colors.black87, blurRadius: 6)],
             ),
-            const SizedBox(height: 2),
-            Text(label, style: const TextStyle(color: Colors.white, fontSize: 10)),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                shadows: [Shadow(color: Colors.black87, blurRadius: 4)],
+              ),
+            ),
           ],
         ),
       ),

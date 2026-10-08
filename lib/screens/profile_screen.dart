@@ -42,9 +42,10 @@ List<PopupMenuEntry<String>> _profileMenuItems() => const [
       ),
     ];
 
-/// A profile shown as a pushed full screen (opened by swipe-right on the feed,
-/// from the Me list, or the rail avatar). Resolves the freshest copy of
-/// [profile] from state so edits/deletes reflect immediately.
+/// A profile shown as a pushed full screen (opened by swipe-left on the feed,
+/// from the Me list, or the rail avatar). Swipe right here to pop back.
+/// Resolves the freshest copy of [profile] from state so edits/deletes
+/// reflect immediately.
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key, required this.profile});
 
@@ -118,27 +119,32 @@ class ProfilePage extends StatelessWidget {
     final p = state.profiles
         .firstWhere((x) => x.id == profile.id, orElse: () => profile);
 
-    return Scaffold(
-      backgroundColor: _surface,
-      appBar: AppBar(
+    return GestureDetector(
+      onHorizontalDragEnd: (d) {
+        if ((d.primaryVelocity ?? 0) > 300) Navigator.pop(context);
+      },
+      child: Scaffold(
         backgroundColor: _surface,
-        foregroundColor: Colors.white,
-        title: Text(
-          _handle(p.name),
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-        actions: [
-          PopupMenuButton<String>(
-            color: const Color(0xFF1E1E24),
-            icon: const Icon(Icons.more_vert, color: Colors.white),
-            onSelected: (v) => _onMenu(context, p, v),
-            itemBuilder: (_) => _profileMenuItems(),
+        appBar: AppBar(
+          backgroundColor: _surface,
+          foregroundColor: Colors.white,
+          title: Text(
+            _handle(p.name),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
-        ],
-      ),
-      body: SafeArea(
-        top: false,
-        child: _ProfileBody(profile: p, onMenu: (v) => _onMenu(context, p, v)),
+          actions: [
+            PopupMenuButton<String>(
+              color: const Color(0xFF1E1E24),
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+              onSelected: (v) => _onMenu(context, p, v),
+              itemBuilder: (_) => _profileMenuItems(),
+            ),
+          ],
+        ),
+        body: SafeArea(
+          top: false,
+          child: _ProfileBody(profile: p, onMenu: (v) => _onMenu(context, p, v)),
+        ),
       ),
     );
   }

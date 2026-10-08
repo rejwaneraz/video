@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/comment_pool.dart';
 import '../state/app_state_scope.dart';
 
 /// Bottom sheet listing auto + user comments, with an input to add your own.
@@ -75,7 +76,16 @@ class _CommentsSheetState extends State<CommentsSheet> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 children: [
                   for (final c in user) _row('You', c, mine: true),
-                  for (final c in auto) _row(c.name, c.text, mine: false),
+                  for (final c in auto)
+                    _row(
+                      c.name,
+                      c.text,
+                      mine: false,
+                      username: c.username,
+                      avatarAsset: c.photo >= 0 && c.photo < kCommenterAvatars.length
+                          ? kCommenterAvatars[c.photo]
+                          : null,
+                    ),
                 ],
               ),
             ),
@@ -119,44 +129,51 @@ class _CommentsSheetState extends State<CommentsSheet> {
     );
   }
 
-  Widget _row(String name, String text, {required bool mine}) {
-    final initial = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
+  Widget _row(String name, String text,
+      {required bool mine, String? username, String? avatarAsset}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 15,
-            backgroundColor: mine ? const Color(0xFFFF2D78) : Colors.white12,
-            child: mine
-                ? const Icon(Icons.person, size: 16, color: Colors.white)
-                : Text(
-                    initial,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700),
-                  ),
-          ),
+          _avatar(name, mine: mine, asset: avatarAsset),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  name,
-                  style: TextStyle(
-                    color: mine ? const Color(0xFFFF2D78) : Colors.white54,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        name,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color:
+                              mine ? const Color(0xFFFF2D78) : Colors.white70,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    if (username != null) ...[
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          username,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              color: Colors.white30, fontSize: 11),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Text(
                   text,
-                  style: TextStyle(
-                    color: mine ? Colors.white : Colors.white70,
+                  style: const TextStyle(
+                    color: Colors.white,
                     fontSize: 14,
                     height: 1.3,
                   ),
@@ -166,6 +183,62 @@ class _CommentsSheetState extends State<CommentsSheet> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Deterministic gradient initial-avatar per commenter name.
+  Widget _avatar(String name, {required bool mine, String? asset}) {
+    final fallback = _gradientAvatar(name, mine: mine);
+    if (asset == null) return fallback;
+    return ClipOval(
+      child: Image.asset(
+        asset,
+        width: 30,
+        height: 30,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => fallback,
+      ),
+    );
+  }
+
+  Widget _gradientAvatar(String name, {required bool mine}) {
+    const palette = [
+      Color(0xFFFF2D78),
+      Color(0xFF7C4DFF),
+      Color(0xFF00B8D4),
+      Color(0xFFFF6D00),
+      Color(0xFF00C853),
+      Color(0xFF3D5AFE),
+      Color(0xFFD81B60),
+      Color(0xFF00897B),
+    ];
+    var h = 0;
+    for (final cu in name.codeUnits) {
+      h = (h * 31 + cu) & 0x7fffffff;
+    }
+    final c = mine ? const Color(0xFFFF2D78) : palette[h % palette.length];
+    final initial = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
+    return Container(
+      width: 30,
+      height: 30,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: [c, c.withOpacity(0.55)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: mine
+          ? const Icon(Icons.person, size: 16, color: Colors.white)
+          : Text(
+              initial,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700),
+            ),
     );
   }
 }
