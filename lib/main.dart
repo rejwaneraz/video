@@ -6,6 +6,7 @@ import 'package:local_auth/local_auth.dart';
 
 import 'screens/app_shell.dart';
 import 'services/db.dart';
+import 'services/route_observer.dart';
 import 'state/app_state.dart';
 import 'state/app_state_scope.dart';
 
@@ -37,6 +38,7 @@ class MiniTiktokApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Videos',
         debugShowCheckedModeBanner: false,
+        navigatorObservers: [appRouteObserver],
         theme: ThemeData(
           brightness: Brightness.dark,
           useMaterial3: true,

@@ -3,6 +3,7 @@ import 'package:video_player/video_player.dart';
 
 import '../models/profile.dart';
 import '../models/video_source.dart';
+import '../services/route_observer.dart';
 import '../state/app_state_scope.dart';
 import 'avatar.dart';
 
@@ -42,7 +43,7 @@ class VideoPage extends StatefulWidget {
 }
 
 class VideoPageState extends State<VideoPage>
-    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin, RouteAware {
   VideoPlayerController? _c;
   bool _initializing = false;
   bool _ready = false;
@@ -91,6 +92,25 @@ class VideoPageState extends State<VideoPage>
     } else {
       _c!.pause();
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route != null) appRouteObserver.subscribe(this, route);
+  }
+
+  /// Another route (profile, search, sheet...) now covers this player.
+  @override
+  void didPushNext() {
+    _c?.pause();
+  }
+
+  /// The covering route was popped; resume if this page is the active one.
+  @override
+  void didPopNext() {
+    if (widget.isActive && _ready) _c?.play();
   }
 
   Future<void> _init() async {
@@ -143,6 +163,7 @@ class VideoPageState extends State<VideoPage>
 
   @override
   void dispose() {
+    appRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     _c?.removeListener(_onTick);
     _c?.dispose();
@@ -313,7 +334,7 @@ class VideoPageState extends State<VideoPage>
 
     return Positioned(
       right: 8,
-      bottom: 24,
+      bottom: 12,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -360,7 +381,7 @@ class VideoPageState extends State<VideoPage>
   Widget _ownerAvatar() {
     final o = widget.owner;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.only(bottom: 12),
       child: SizedBox(
         width: 46,
         child: Stack(
@@ -405,7 +426,7 @@ class VideoPageState extends State<VideoPage>
 
   Widget _musicDisc() {
     return Padding(
-      padding: const EdgeInsets.only(top: 4, bottom: 4),
+      padding: const EdgeInsets.only(top: 2),
       child: RotationTransition(
         turns: _disc,
         child: Container(
@@ -435,21 +456,21 @@ class VideoPageState extends State<VideoPage>
     Color color = Colors.white,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 10),
       child: GestureDetector(
         onTap: onTap,
         child: Column(
           children: [
             Container(
-              width: 44,
-              height: 44,
+              width: 40,
+              height: 40,
               decoration: const BoxDecoration(
                 color: Colors.black38,
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: color, size: 24),
+              child: Icon(icon, color: color, size: 22),
             ),
-            const SizedBox(height: 3),
+            const SizedBox(height: 2),
             Text(label, style: const TextStyle(color: Colors.white, fontSize: 10)),
           ],
         ),

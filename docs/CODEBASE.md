@@ -17,8 +17,8 @@ Use this to orient without re-reading everything. Paths relative to repo root.
   AllVideosPage(showTitle:false)]. Tabs switch by TAP; feed keeps its own
   horizontal gestures. `_TopTabs` renders the animated underline.
 - `lib/screens/feed_page.dart` — `FeedPage` (For You vertical PageView,
-  RefreshIndicator reshuffle). Horizontal swipe right -> push owner `ProfilePage`;
-  swipe left -> `onOpenExplore` (All Videos top tab). `_EmptyFeed` calls
+  RefreshIndicator reshuffle). Horizontal swipe left -> push owner `ProfilePage`;
+  swipe right -> `onOpenExplore` (All Videos top tab). `_EmptyFeed` calls
   `onRequestAddVideos`. (v2 `HomeSwitcher`/`HomeController` removed.)
 
 ## State & services
@@ -44,6 +44,8 @@ Use this to orient without re-reading everything. Paths relative to repo root.
   `NamedComment(name,text)`); userComments/allComments/commentCount/addComment;
   `likedIds` + `allUserComments` getters (feed the Inbox).
 - `lib/services/media_service.dart` — permission + paged device video load.
+- `lib/services/route_observer.dart` — global `appRouteObserver`
+  (RouteObserver); registered in MaterialApp.navigatorObservers.
 - `lib/data/comment_pool.dart` — 150 Banglish comments (`kCommentPool`) +
   Bangla author names (`kNamePool`).
 
@@ -78,7 +80,9 @@ Use this to orient without re-reading everything. Paths relative to repo root.
 ## Widgets
 - `video_page.dart` — `VideoPage(source, isActive, ownerName, owner, onFollow,
   following, onAssign, onOpenProfile, onOpenComments, showAssign)`.
-  Contain/letterbox playback, lifecycle pause. Rail (top->bottom): owner avatar
+  Contain/letterbox playback, lifecycle pause, RouteAware pause (didPushNext
+  pauses when any route/sheet covers the player; didPopNext resumes).
+  Rail (top->bottom): owner avatar
   +follow badge, Like, Comment, Bookmark (saved_ids), Share (offline toast),
   Mute, Assign, spinning music disc (`AnimationController`). `_fmt` K/M.
 - `thumb.dart` — `VideoThumb(source,...,viewsLabel)` local jpg or asset thumb +

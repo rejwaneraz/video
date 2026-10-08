@@ -9,8 +9,8 @@ import 'profile_screen.dart';
 
 /// The vertical "For You" feed: every copied video, shuffled.
 ///
-/// Horizontal swipe right -> that video's owner profile (pushed).
-/// Horizontal swipe left -> Explore tab (All Videos).
+/// Horizontal swipe left -> that video's owner profile (pushed).
+/// Horizontal swipe right -> Explore tab (All Videos).
 class FeedPage extends StatefulWidget {
   const FeedPage({
     super.key,
@@ -19,7 +19,7 @@ class FeedPage extends StatefulWidget {
     this.tabActive = true,
   });
 
-  /// Called on left swipe so the shell can switch to Explore.
+  /// Called on right swipe so the shell can switch to Explore.
   final VoidCallback? onOpenExplore;
 
   /// Opens add-videos for the active profile (used by the empty state).
@@ -68,9 +68,9 @@ class _FeedPageState extends State<FeedPage> {
       onHorizontalDragUpdate: (d) => _hDrag += d.delta.dx,
       onHorizontalDragEnd: (_) {
         if (_hDrag > 60) {
-          _openOwnerProfile(state);
-        } else if (_hDrag < -60) {
           widget.onOpenExplore?.call();
+        } else if (_hDrag < -60) {
+          _openOwnerProfile(state);
         }
         _hDrag = 0;
       },
