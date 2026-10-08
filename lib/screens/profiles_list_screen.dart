@@ -60,7 +60,7 @@ class ProfilesListScreen extends StatelessWidget {
             Container(
               width: 48,
               height: 48,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(color: _pink),
               ),

@@ -128,7 +128,7 @@ class _VideoThumbState extends State<VideoThumb> {
                 ),
               ),
             ),
-            if (viewsLabel != null)
+            if (widget.viewsLabel != null)
               Positioned(
                 left: 4,
                 bottom: 4,
@@ -138,7 +138,7 @@ class _VideoThumbState extends State<VideoThumb> {
                     const Icon(Icons.play_arrow, size: 13, color: Colors.white),
                     const SizedBox(width: 1),
                     Text(
-                      viewsLabel!,
+                      widget.viewsLabel!,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 11,
